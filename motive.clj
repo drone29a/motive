@@ -12,40 +12,40 @@
           (aset a# ~@idxs (f# ~@idxs))))
        a#)))
 
-;; Quaternion
-(defstruct quaternion :one :i :j :k)
+;; Quaternion as a + bj + ck + di
+(defstruct quat :a :b :c :d)
+
+(defn quat-new
+  ([angle [x y z]]
+     (let [a (. Math cos (/ angle 2))
+           b (* x (. Math sin (/ angle 2)))
+           c (* y (. Math sin (/ angle 2)))
+           d (* z (. Math sin (/ angle 2)))]
+       (struct quat a b c d))))
+
+(defn quat-*
+  "Multiply (combine) quaternions."
+  ([q1 q2] 
+     (let [a (+ (- (- (* (- (:b q1)) (:b q2))
+                      (* (:c q1) (:c q2)))
+                   (* (:d q1) (:d q2)))
+                (* (:a q1) (:a q2)))
+           b (+ (- (+ (* (:b q1) (:a q2))
+                      (* (:c q1) (:d q2)))
+                   (* (:d q1) (:c q2)))
+                (* (:a q1) (:b q2)))
+           c (+ (+ (+ (* (- (:b q1)) (:d q2))
+                      (* (:c q1) (:a q2)))
+                   (* (:d q1) (:b q2)))
+                (* (:a q1) (:c q2)))
+           d (+ (+ (- (* (:b q1) (:c q2))
+                      (* (:c q1) (:b q2)))
+                   (* (:d q1) (:a q2)))
+                (* (:a q1) (:d q2)))]
+       (struct quat a b c d))))
 
 ;; Rotations are the primitive movement in rigid limb motion
-(defstruct rotation :joint :axis :angle :duration :velocity)
-
-(defn similar 
-  "Returns true if the rotations are defined on the same joint and axis."
-  [x y]
-  (and (= (:joint x) (:joint y))
-       (= (:axis x) (:axis y))))
-
-(defn rotation-add 
-  "Add rotations."
-  [x y]
-  (cond (or (nil? x) (nil? y))
-        (or x y)
-        (not (similar x y))
-        (throw (Exception. (str "Incompatible joints or axes")))
-        :else
-        (struct-map rotation
-          :joint (:joint x)
-          :axis (:axis x)
-          :angle (+ (:angle x) (:angle y)))))
-
-(defn rotation-subtract
-  "Subtract rotations."
-  [x y]
-  (if (not (similar x y))
-    (throw (Exception. (str "Incompatible joints or axes")))
-    (struct-map rotation
-      :joint (:joint x)
-      :axis (:axis x)
-      :angle (- (:angle x) (:angle y)))))
+(defstruct rotation :joint :quat :duration :velocity)
 
 ;; Movement
 ;; A well-formed movement should have a set if rotations,
@@ -73,6 +73,20 @@
   ([joints-lengths pos]
      (assoc (limb-new joints-lengths) :pos pos)))
 
+;; Position
+(defn next-joint-pos
+  "Find the position of the next joint in the limb."
+  [j]
+  )
+
 ;; Scratch
 (let [arm (limb-new '(:shoulder 5 :elbow 6 :wrist) [0 0 0])
       wave ()])
+
+;; Operators
+;; Still figuring this out but the notion is:
+;; + :: simple x simple -> complex  where the new complex motion is two simple motions sequenced  (sequencing)
+;; * :: simple x simple -> simple  quat multiplication, this is "blending" of motion  (blending)
+;; + :: complex x simple -> complex  a new complex motion where the simple motion does not overlap an existing simple motion on the same joint  (compounding)
+;; + :: complex x complex -> complex ??
+;; * :: complex x complex -> complex ??
