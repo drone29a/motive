@@ -1,55 +1,13 @@
-(clojure/in-ns 'motive)
-(clojure/refer 'clojure)
+(ns motive)
+(load-resources "utils.clj"
+                "quat.clj")
 
-(defmacro init-array [type init-fn & dims]
-  (let [idxs (map (fn [_] (gensym)) dims)
-        ds (map (fn [_] (gensym)) dims)]
-    `(let [a# (make-array ~type ~@dims)
-           f# ~init-fn
-           ~@(mapcat vector ds dims)]
-       (dorun 
-        (for ~(vec (mapcat #(list %1 (list `range %2)) idxs ds))
-          (aset a# ~@idxs (f# ~@idxs))))
-       a#)))
-
-;; Quaternion as a + bj + ck + di
-(defstruct quat :a :b :c :d)
-
-(defn quat-new
-  ([angle [x y z]]
-     (let [a (. Math cos (/ angle 2))
-           b (* x (. Math sin (/ angle 2)))
-           c (* y (. Math sin (/ angle 2)))
-           d (* z (. Math sin (/ angle 2)))]
-       (struct quat a b c d))))
-
-(defn quat-*
-  "Multiply (combine) quaternions."
-  ([q1 q2] 
-     (let [a (+ (- (- (* (- (:b q1)) (:b q2))
-                      (* (:c q1) (:c q2)))
-                   (* (:d q1) (:d q2)))
-                (* (:a q1) (:a q2)))
-           b (+ (- (+ (* (:b q1) (:a q2))
-                      (* (:c q1) (:d q2)))
-                   (* (:d q1) (:c q2)))
-                (* (:a q1) (:b q2)))
-           c (+ (+ (+ (* (- (:b q1)) (:d q2))
-                      (* (:c q1) (:a q2)))
-                   (* (:d q1) (:b q2)))
-                (* (:a q1) (:c q2)))
-           d (+ (+ (- (* (:b q1) (:c q2))
-                      (* (:c q1) (:b q2)))
-                   (* (:d q1) (:a q2)))
-                (* (:a q1) (:d q2)))]
-       (struct quat a b c d))))
 
 ;; Rotations are the primitive movement in rigid limb motion
 (defstruct rotation :joint :quat :duration :velocity)
 
 ;; Movement
-;; A well-formed movement should have a set if rotations,
-;; where no two rotations are similar.
+;; A set of rotations.
 (defstruct movement :rotations)
 
 ;; Joints
@@ -74,9 +32,10 @@
      (assoc (limb-new joints-lengths) :pos pos)))
 
 ;; Position
-(defn next-joint-pos
+(defn joint-child-pos
   "Find the position of the next joint in the limb."
-  [j]
+  [parent-joint parent-pos]
+  
   )
 
 ;; Scratch
