@@ -1,10 +1,11 @@
-(ns motive)
-(load-resources "utils.clj"
-                "quat.clj")
-
+(ns motive
+  (:use (motive util quat)))
 
 ;; Rotations are the primitive movement in rigid limb motion
 (defstruct rotation :joint :quat :duration :velocity)
+
+(defmacro new-rotation
+  "Make a new rotation.")
 
 ;; Movement
 ;; A set of rotations.
@@ -32,11 +33,11 @@
      (assoc (limb-new joints-lengths) :pos pos)))
 
 ;; Position
-(defn joint-child-pos
-  "Find the position of the next joint in the limb."
-  [parent-joint parent-pos]
-  
-  )
+(defn segment-end-pos
+  "Rotate segment for a given joint."
+  [joint segment-length]
+  (quat-rotate (:orientation joint)
+               [0 segment-length 0]))
 
 ;; Scratch
 (let [arm (limb-new '(:shoulder 5 :elbow 6 :wrist) [0 0 0])

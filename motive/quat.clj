@@ -1,4 +1,4 @@
-(in-ns 'motive)
+(ns motive.quat)
 
 ;; Quaternion as a + bj + ck + di
 (defstruct quat :a :b :c :d)
