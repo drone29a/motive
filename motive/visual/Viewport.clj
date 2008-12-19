@@ -1,5 +1,5 @@
 (ns motive.visual.Viewport
-  (:import (com.jme.app BaseSimpleGame)
+  (:import (com.jme.app BaseSimpleGame AbstractGame)
            (com.jme.bounding BoundingBox
                              BoundingSphere)
            (com.jme.math Quaternion Vector3f)
@@ -12,9 +12,12 @@
              display {:get getDisplay}
              tpf {:get getTpf}
              pause {:get getPause}}
-   :super-methods {super-update [update [float] void]
-                   super-render [render [float] void]}
-   :methods [[add [com.jme.scene.Geometry clojure.lang.IFn] void]]
+   :exposes-methods {update superUpdate
+                     render superRender}
+   :methods [[addWithUpdate [com.jme.scene.Spatial clojure.lang.IFn] void]
+             [add [com.jme.scene.Spatial] void]
+             [remove [com.jme.scene.Spatial] void]
+             [removeAll [] void]]
    :state state))
 
 ;; The objs map contains renderable objects mapped to their update function
@@ -23,10 +26,7 @@
 
 (defn -simpleInitGame
   [this]
-  (let [box (Box. "my box" (new Vector3f 0 0 0) 2 2 2)]
-    (. box (setModelBound (new BoundingSphere)))
-    (. box (updateModelBound))
-    (. (.getRootNode this) (attachChild box))))
+  )
 
 (defn -quit
   [this]
@@ -34,25 +34,46 @@
     (when display
       (.close display))))
 
-(defn -add 
+(defn -add
+  [this obj]
+  (swap! (.state this) 
+         (fn [s]
+           (let [objs (:objs s)]
+             (assoc s :objs (assoc objs obj nil)))))
+  (.attachChild (.getRootNode this) obj))
+
+(defn -addWithUpdate
   [this obj update-fn]
   (swap! (.state this) 
          (fn [s]
            (let [objs (:objs s)]
-             (assoc objs obj update-fn))))
+             (assoc s :objs (assoc objs obj update-fn)))))
   (.attachChild (.getRootNode this) obj))
+
+(defn -remove
+  [this obj]
+  (.detachChild (.getRootNode this) obj))
+
+(defn -removeAll
+  [this]
+  (.detachAllChildren (.getRootNode this)))
 
 (defn -update 
   [this #^Float/TYPE interp]
-  (. this super-update interp)
+  (.superUpdate this interp)
   
+  (doseq [[obj f] (:objs @(.state this))]
+    (when f 
+      (f this obj)
+      (.updateModelBound obj)))
+
   (when (not (.getPause this))
     (.simpleUpdate this)
     (.updateGeometricState (.getRootNode this) (.getTpf this) true)))
 
 (defn -render
   [this #^Float/TYPE interp]
-  (. this super-render interp)
+  (.superRender this interp)
 
   (let [r (.getRenderer (.getDisplay this))]
     (.draw r (.getRootNode this))
