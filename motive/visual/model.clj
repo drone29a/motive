@@ -3,7 +3,7 @@
         motive.visual)
   (:import (com.jme.bounding BoundingBox)
            (com.jme.scene.shape Cylinder AxisRods)
-           (com.jme.scene Node)
+           (com.jme.scene Node Spatial)
            (com.jme.math Vector3f Quaternion)))
 
 (defn left-arm-model
@@ -68,17 +68,48 @@
   "Assemble!"
   []
   (let [parts (body-parts)
-        joints {:elbow (AxisRods. "elbow")
-                :shoulder (AxisRods. "shoulder")}
-        part-nodes {:torso-node (AxisRods. "torso-node")
-                    :left-upperarm-node (AxisRods. "left-upperarm-node")
-                    :right-upperarm-node (AxisRods. "right-upperarm-node")}]
+        joints {:left-elbow (AxisRods. "left-elbow")
+                :right-elbow (AxisRods. "right-elbow")
+                :left-shoulder (AxisRods. "left-shoulder")
+                :right-shoulder (AxisRods. "right-shoulder")}
+        hips-node (AxisRods. "hips-node")
+        torso-node (AxisRods. "torso-node")
+        left-upperarm-node (AxisRods. "left-upperarm-node")
+        right-upperarm-node (AxisRods. "right-upperarm-node")]
     
-    (.setLocalTranslation (:torso parts) (Vector3f. 0 10 0))
-    (.setLocalTranslation (:hips parts) (Vector3f. 0 3 0))
-    (.setLocalTranslation (:head parts) (Vector3f. 0 22 0))
-    (.setLocalTranslation (:right-upperarm parts) (Vector3f. -7 10 0))
-    (.setLocalTranslation (:left-upperarm parts) (Vector3f. 7 10 0))
-    (.setLocalTranslation (:right-forearm parts) (Vector3f. -7 1.5 0))
-    (.setLocalTranslation (:left-forearm parts) (Vector3f. 7 1.5 0))
-    parts))
+    ;; Parts and space-holding nodes into position
+    (.setLocalTranslation (:torso parts) (Vector3f. 0 0 0))
+    (.setLocalTranslation (:hips parts) (Vector3f. 0 0 0))
+    (.setLocalTranslation (:head parts) (Vector3f. 0 10 0))
+    (.setLocalTranslation (:right-upperarm parts) (Vector3f. 0 0 0))
+    (.setLocalTranslation (:left-upperarm parts) (Vector3f. 0 0 0))
+    (.setLocalTranslation (:right-forearm parts) (Vector3f. 0 -5 0))
+    (.setLocalTranslation (:left-forearm parts) (Vector3f. 0 -5 0))
+    (.setLocalTranslation hips-node (Vector3f. 0 3 0))
+    (.setLocalTranslation torso-node (Vector3f. 0 9 0))
+    (.setLocalTranslation left-upperarm-node (Vector3f. 0 -5 0))
+    (.setLocalTranslation right-upperarm-node (Vector3f. 0 -5 0))
+
+    ;; Joints in right spot
+    (.setLocalTranslation (:left-elbow joints) (Vector3f. 0 -5.5 0))
+    (.setLocalTranslation (:right-elbow joints) (Vector3f. 0 -5.5 0))
+    (.setLocalTranslation (:left-shoulder joints) (Vector3f. 7 5 0))
+    (.setLocalTranslation (:right-shoulder joints) (Vector3f. -7 5 0))
+
+    ;; It all starts at the hips
+    (.attachChild hips-node (cast Spatial (:hips parts)))
+    (.attachChild hips-node torso-node)
+    (.attachChild torso-node (cast Spatial (:torso parts)))
+    (.attachChild torso-node (cast Spatial (:head parts)))
+    (.attachChild torso-node (:left-shoulder joints))
+    (.attachChild (:left-shoulder joints) left-upperarm-node)
+    (.attachChild left-upperarm-node (cast Spatial (:left-upperarm parts)))
+    (.attachChild left-upperarm-node (:left-elbow joints))
+    (.attachChild (:left-elbow joints) (cast Spatial (:left-forearm parts)))
+    (.attachChild torso-node (:right-shoulder joints))
+    (.attachChild (:right-shoulder joints) right-upperarm-node)
+    (.attachChild right-upperarm-node (cast Spatial (:right-upperarm parts)))
+    (.attachChild right-upperarm-node (:right-elbow joints))
+    (.attachChild (:right-elbow joints) (cast Spatial (:right-forearm parts)))
+
+    hips-node))
