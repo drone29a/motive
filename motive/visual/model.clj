@@ -1,38 +1,13 @@
 (ns motive.visual.model
-  (:use motive
-        motive.visual)
-  (:import (com.jme.bounding BoundingBox)
+  (:use motive.visual)
+  (:import (com.jme.bounding BoundingBox BoundingSphere)
            (com.jme.scene.shape Cylinder AxisRods)
-           (com.jme.scene Node Spatial)
+           (com.jme.scene Node Spatial Spatial$LightCombineMode)
            (com.jme.math Vector3f Quaternion)))
 
-(defn left-arm-model
-  "Construct a torso with left arm."
-  []
-  (let [forearm (Cylinder. "forearm" 32 32 1.5 10 true)
-        upperarm (Cylinder. "upperarm" 32 32 1.8 8 true)
-        torso (Cylinder. "torso" 32 32 5 15 true)
-        elbow-joint (AxisRods. "elbow")
-        shoulder-joint (AxisRods. "shoulder")
-        torso-node (Node. "torso-node")
-        upperarm-node (Node. "upperarm-node")
-        model {:torso torso-node
-               :upperarm upperarm-node
-               :forearm forearm
-               :elbow elbow-joint
-               :shoulder shoulder-joint}]
-    (doseq [shape (vals model)]
-      (.setModelBound shape (BoundingBox.))
-      (.updateModelBound shape))
-
-    (.attachChild elbow-joint forearm)
-    (.attachChild upperarm-node elbow-joint)
-    (.attachChild upperarm-node upperarm)
-    (.attachChild shoulder-joint upperarm)
-    (.attachChild torso-node shoulder-joint)    
-    (.attachChild torso-node torso)
-
-    model))
+(defstruct body
+  :root
+  :joints)
 
 (defn xyz->vector3f
   [[x y z]]
@@ -56,6 +31,7 @@
                                                              (.getRadius torso)
                                                              (.getHeight torso)
                                                              true)]
+                                            (.setModelBound c (BoundingSphere.))
                                             (.setLocalScale c (xyz->vector3f scale-xyz))
                                             [name-kw c])) scales))]
     ;; Flip 'em up
@@ -68,14 +44,14 @@
   "Assemble!"
   []
   (let [parts (body-parts)
-        joints {:left-elbow (AxisRods. "left-elbow")
-                :right-elbow (AxisRods. "right-elbow")
-                :left-shoulder (AxisRods. "left-shoulder")
-                :right-shoulder (AxisRods. "right-shoulder")}
-        hips-node (AxisRods. "hips-node")
-        torso-node (AxisRods. "torso-node")
-        left-upperarm-node (AxisRods. "left-upperarm-node")
-        right-upperarm-node (AxisRods. "right-upperarm-node")]
+        joints {:left-elbow (doto (AxisRods. "left-elbow") (.setLightCombineMode Spatial$LightCombineMode/Inherit))
+                :right-elbow (doto (AxisRods. "right-elbow") (.setLightCombineMode Spatial$LightCombineMode/Inherit))
+                :left-shoulder (doto (AxisRods. "left-shoulder") (.setLightCombineMode Spatial$LightCombineMode/Inherit))
+                :right-shoulder (doto (AxisRods. "right-shoulder") (.setLightCombineMode Spatial$LightCombineMode/Inherit))}
+        hips-node (doto (AxisRods. "hips-node") (.setLightCombineMode Spatial$LightCombineMode/Inherit))
+        torso-node (doto (AxisRods. "torso-node") (.setLightCombineMode Spatial$LightCombineMode/Inherit))
+        left-upperarm-node (doto (AxisRods. "left-upperarm-node") (.setLightCombineMode Spatial$LightCombineMode/Inherit))
+        right-upperarm-node (doto (AxisRods. "right-upperarm-node") (.setLightCombineMode Spatial$LightCombineMode/Inherit))]
     
     ;; Parts and space-holding nodes into position
     (.setLocalTranslation (:torso parts) (Vector3f. 0 0 0))
@@ -97,19 +73,64 @@
     (.setLocalTranslation (:right-shoulder joints) (Vector3f. -7 5 0))
 
     ;; It all starts at the hips
-    (.attachChild hips-node (cast Spatial (:hips parts)))
+    (.attachChild hips-node (:hips parts))
     (.attachChild hips-node torso-node)
-    (.attachChild torso-node (cast Spatial (:torso parts)))
-    (.attachChild torso-node (cast Spatial (:head parts)))
+    (.attachChild torso-node (:torso parts))
+    (.attachChild torso-node (:head parts))
     (.attachChild torso-node (:left-shoulder joints))
     (.attachChild (:left-shoulder joints) left-upperarm-node)
-    (.attachChild left-upperarm-node (cast Spatial (:left-upperarm parts)))
+    (.attachChild left-upperarm-node (:left-upperarm parts))
     (.attachChild left-upperarm-node (:left-elbow joints))
-    (.attachChild (:left-elbow joints) (cast Spatial (:left-forearm parts)))
+    (.attachChild (:left-elbow joints) (:left-forearm parts))
     (.attachChild torso-node (:right-shoulder joints))
     (.attachChild (:right-shoulder joints) right-upperarm-node)
-    (.attachChild right-upperarm-node (cast Spatial (:right-upperarm parts)))
+    (.attachChild right-upperarm-node (:right-upperarm parts))
     (.attachChild right-upperarm-node (:right-elbow joints))
-    (.attachChild (:right-elbow joints) (cast Spatial (:right-forearm parts)))
+    (.attachChild (:right-elbow joints) (:right-forearm parts))
+    
+    (struct-map body
+      :root hips-node
+      :joints joints)))
 
-    hips-node))
+(defn pose-arms
+  "Modify the model's arms to match the pose defined by vectors."
+  [model [right-upper right-fore] [left-upper left-fore]]
+  (let [left-upper (.normalize left-upper)
+        left-fore (.normalize left-fore)
+        left-shoulder (.getChild model "left-shoulder")
+        left-upper-angle (.angleBetween left-upper (Vector3f. 0 -1 0))
+        left-upper-axis (.cross left-upper (Vector3f. 0 -1 0))
+        left-upper-quat (.mult (Quaternion. (doto (make-array Float/TYPE 3) 
+                                              (aset 0 (float 0))
+                                              (aset 1 (float 0))
+                                              (aset 2 (float 0)))) 
+                               (.fromAngleAxis (Quaternion.) left-upper-angle left-upper-axis))
+        left-elbow (.getChild model "left-elbow")
+        left-fore-angle (.angleBetween left-fore (Vector3f. 0 -1 0))
+        left-fore-axis (.cross left-fore (Vector3f. 0 -1 0))
+        left-fore-quat (.mult (Quaternion. (doto (make-array Float/TYPE 3) 
+                                             (aset 0 (float 0))
+                                             (aset 1 (float 0))
+                                             (aset 2 (float 0)))) 
+                              (.fromAngleAxis (Quaternion.) left-fore-angle left-fore-axis))]
+    (.setLocalRotation left-shoulder left-upper-quat)
+    (.setLocalRotation left-elbow left-fore-quat)))
+
+(defn make-update-fn 
+  [data]
+  (let [shoulder-eulers (take)]))
+
+(comment 
+  (defn prep-for-anim
+    "Take the model and some FoB data.  Set the initial pose and build the frame updater generator thing.
+Return both the model and the updater function."
+    [body data]
+    (pose-arms body [nil nil] (initial-poses (take 3 data)))))
+
+(defn make-update-shoulders-fn
+  [rot-gen]
+  (fn [viewport body]
+    (let [tpf (.getTpf viewport)
+          left-shoulder (.getChild body "left-shoulder")
+          left-shoulder-rot (-> (.getLocalRotation left-shoulder) (.mult (rot-gen tpf)))]
+      (.setLocalRotation left-shoulder left-shoulder-rot))))

@@ -1,5 +1,4 @@
 (ns motive.visual
-    (:use motive)
     (:import (java.io File)
              (java.net URISyntaxException URL)
              (java.util.logging Logger)
@@ -13,5 +12,4 @@
              (com.jme.util TextureManager)
              (com.jme.util.resource MultiFormatResourceLocator
                                     ResourceLocatorTool
-                                    SimpleResourceLocator))
-    (:load "visual/window"))
+                                    SimpleResourceLocator)))
