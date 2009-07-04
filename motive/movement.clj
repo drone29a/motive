@@ -8,18 +8,14 @@
 (defn axis 
   "Construct a Vector3f from x, y, z."
   [x y z]
-  (Vector3f. (float x) (float y) (float z)))
+  (.normalize (Vector3f. (float x) (float y) (float z))))
 
 (defn quat
   "Construct a jME quaternion from angle and axis."
   [angle #^Vector3f axis]
   (-> (Quaternion.) (.fromAngleAxis angle axis)))
 
-(defn vel-linear
-  [x]
-  (identity x))
-
-(defn vel-interp
+(defn interp
   "From a sequence of accelerations build up a function that maps [0.0, 1.0] to
 the amount of interpolation that should be applied for a joint rotation."
   [accel-pts]
@@ -65,22 +61,20 @@ the amount of interpolation that should be applied for a joint rotation."
   "Multiply the first movement's quaternion by the second.
 Not commutative!"
   [q1 q2]
-  (.mult (:quaternion q1) 
-         (:quaternion q2)))
+  (.mult q2 
+         q1))
 
-(defn combine-velocity
-  "Blend two velocity functions."
-  [v1 v2]
-  (fn [t] (/ (+ (v1 t) 
-                (v2 t)) 
-             2.0)))
+(defn combine-interp
+  "Blend two interp functions."
+  [i1 i2 α d1 d2]
+  (fn [t] (+ (* α (i1 t)) 
+             (* (- 1 α) (i2 (* t (/ d1 d2)))))))
 
 (defn combine-duration
   "Mean of durations."
-  [d1 d2]
-  (/ (+ (:duration d1)
-        (:duration d2))
-     2.0))
+  [d1 d2 α]
+  (+ (* α d1)
+     (* (- 1 α) d2)))
 
 (defstruct super-movement :simple-movements :time-starts)
 

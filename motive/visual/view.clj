@@ -74,6 +74,14 @@ the current rotation of the joint."
                         :done)))]
     update-fn))
 
+;;; Examples
+(comment 
+  ; Simple movement
+  (move (-> body :joints :right-elbow) (simple (quat 1.5 (axis -1 0 0)) (interp [1000 0 10000 0 -500 -800 -1500 -4000]) 6))
+  ; Super movement
+  (move {(-> body :joints :right-elbow) [[0 (simple (quat 1.8 (axis -1 0 0)) (interp [1000 0 10000 0 -500 -800 -1500 -4000]) 6)]]
+         (-> body :joints :right-shoulder) [[3 (simple (quat 1.7 (axis -0.5 1 0)) (interp [50000 -1000 -1000 -50000]) 4)]]})
+  )
 (defn move
   ([joint simple-movement]
      (add-movement (make-move-update joint
@@ -116,3 +124,10 @@ the current rotation of the joint."
                                (when (empty? @update-fns)
                                  :done)))]
        (add-movement super-update-fn))))
+
+(defn reset
+  "Reset body"
+  [body]
+  (doseq [j (-> body :joints vals)]
+    (.setLocalRotation j (Quaternion.)))
+  body)
